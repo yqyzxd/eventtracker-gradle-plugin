@@ -75,7 +75,7 @@ class EventTrackerTransformation extends Transform {
             }
 
 
-            EventTracker tracker=new EventTracker()
+            EventTracker tracker=new EventTracker(TrackerConfig.newBuilder().build())
             tracker.track(srcInputMap,jarInputMap)
 
 
@@ -93,7 +93,6 @@ class EventTrackerTransformation extends Transform {
                 dirOutput.deleteDir()
             } else {
 
-                //final Map<File, Status> obfuscatedChangedFiles = new HashMap<>()
                 final String rootInputFullPath = dirInput.getAbsolutePath()
                 final String rootOutputFullPath = dirOutput.getAbsolutePath()
                 input.changedFiles.each { entry ->
@@ -112,7 +111,6 @@ class EventTrackerTransformation extends Transform {
                             changedFileOutput.delete()
                             break
                     }
-                   // obfuscatedChangedFiles.put(changedFileOutput,status)
                 }
 
             }

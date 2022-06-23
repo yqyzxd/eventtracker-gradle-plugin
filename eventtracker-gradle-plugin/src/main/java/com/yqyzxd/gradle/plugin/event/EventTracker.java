@@ -3,13 +3,23 @@ package com.yqyzxd.gradle.plugin.event;
 import com.android.tools.r8.w.F;
 
 import org.apache.commons.io.FileUtils;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Opcodes;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Copyright (C), 2015-2022, 杭州迈优文化创意有限公司
@@ -23,17 +33,60 @@ import java.util.Map;
  */
 public class EventTracker {
     private TrackerConfig mConfig;
-    public EventTracker(TrackerConfig config){
-        this.mConfig=config;
+
+    public EventTracker(TrackerConfig config) {
+        this.mConfig = config;
     }
 
     public void track(Map<File, File> dirMap, Map<File, File> jarMap) {
         trackSrc(dirMap);
-        trackJars(jarMap);
+        trackJar(jarMap);
     }
 
     private void trackJar(Map<File, File> jarMap) {
+        if (jarMap != null) {
+            for (Map.Entry<File, File> entry : jarMap.entrySet()) {
+                trackJar(entry.getKey(), entry.getValue());
+            }
+        }
+    }
 
+    private void trackJar(File inputJar, File outputJar) {
+        ZipOutputStream zipOutputStream = null;
+        ZipFile zipFile = null;
+        try {
+            zipOutputStream = new ZipOutputStream(new FileOutputStream(outputJar));
+            zipFile = new ZipFile(inputJar);
+            Enumeration<? extends ZipEntry> enumeration = zipFile.entries();
+            while (enumeration.hasMoreElements()) {
+                ZipEntry zipEntry = enumeration.nextElement();
+                String zipEntryName = zipEntry.getName();
+                if (!mConfig.exclude(zipEntryName)) {
+                    InputStream inputStream = zipFile.getInputStream(zipEntry);
+
+                    //使用asm修改class
+                    ClassReader classReader = new ClassReader(inputStream);
+                    ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+                    ClassVisitor classVisitor = new EventClassAdapter(Opcodes.ASM5, classWriter);
+                    classReader.accept(classVisitor, ClassReader.EXPAND_FRAMES);
+
+                    byte[] data = classWriter.toByteArray();
+                    InputStream byteArrayInputStream = new ByteArrayInputStream(data);
+                    ZipEntry newZipEntry = new ZipEntry(zipEntryName);
+                    Util.addZipEntry(zipOutputStream, newZipEntry, byteArrayInputStream);
+
+                } else {
+                    InputStream inputStream = zipFile.getInputStream(zipEntry);
+                    ZipEntry newZipEntry = new ZipEntry(zipEntryName);
+                    Util.addZipEntry(zipOutputStream, newZipEntry, inputStream);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            Util.closeQuietly(zipOutputStream);
+            Util.closeQuietly(zipFile);
+        }
     }
 
     private void trackSrc(Map<File, File> dirMap) {
@@ -48,32 +101,31 @@ public class EventTracker {
         List<File> classFiles = new ArrayList<>();
         if (input.isDirectory()) {
             traverseClassFile(classFiles, input);
-        }else {
+        } else {
             classFiles.add(input);
         }
-        for (File classFile:classFiles) {
-            InputStream is=null;
-            FileOutputStream os=null;
+        for (File classFile : classFiles) {
+            InputStream is = null;
+            FileOutputStream os = null;
             try {
-                final String changedFileInputFullPath=classFile.getAbsolutePath();
-                final File changedFileOutput=new File(changedFileInputFullPath.replace(input.getAbsolutePath(),output.getAbsolutePath()))
+                final String changedFileInputFullPath = classFile.getAbsolutePath();
+                final File changedFileOutput = new File(changedFileInputFullPath.replace(input.getAbsolutePath(), output.getAbsolutePath()));
                 if (!changedFileOutput.exists()) {
                     changedFileOutput.getParentFile().mkdirs();
                 }
                 changedFileOutput.createNewFile();
 
-                if (!mConfig.exclude(classFile.getName())){
+                if (!mConfig.exclude(classFile.getName())) {
 
 
-
-                }else {
-                    FileUtils.copyFile(classFile,changedFileOutput);
+                } else {
+                    FileUtils.copyFile(classFile, changedFileOutput);
                 }
 
 
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
-            }finally {
+            } finally {
                 Util.closeQuietly(is);
                 Util.closeQuietly(os);
             }
