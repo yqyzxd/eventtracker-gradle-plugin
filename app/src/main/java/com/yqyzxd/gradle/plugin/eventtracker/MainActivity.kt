@@ -2,6 +2,7 @@ package com.yqyzxd.gradle.plugin.eventtracker
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.yqyzxd.event.Event
 
 import com.yqyzxd.gradle.plugin.eventtracker.databinding.ActivityMainBinding
 
@@ -16,7 +17,14 @@ class MainActivity : AppCompatActivity() {
             setContentView(binding.root)
 
 
+            event()
+
         }
+
+    @Event("001")
+    private fun event() {
+        println("MainAct event")
     }
+}
 
 

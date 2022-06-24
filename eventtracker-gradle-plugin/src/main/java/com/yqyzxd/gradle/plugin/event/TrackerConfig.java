@@ -32,6 +32,12 @@ public class TrackerConfig {
                     exclude = true;
                     break;
                 }
+                for (String pkg:EXCLUDE_PACKAGE){
+                    if (fileName.startsWith(pkg)){
+                        exclude = true;
+                        break;
+                    }
+                }
             }
         } else {
             exclude = true;

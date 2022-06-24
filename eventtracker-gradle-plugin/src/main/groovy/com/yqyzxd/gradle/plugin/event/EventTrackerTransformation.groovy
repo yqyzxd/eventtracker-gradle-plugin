@@ -11,10 +11,8 @@ import com.android.build.api.transform.TransformInvocation
 import com.android.build.api.transform.TransformOutputProvider
 import com.android.build.gradle.internal.pipeline.TransformManager
 import com.google.common.hash.Hashing
-import com.google.common.hash.HashingInputStream
 import org.apache.commons.io.Charsets
 
-import java.nio.charset.Charset
 
 class EventTrackerTransformation extends Transform {
 
@@ -115,7 +113,7 @@ class EventTrackerTransformation extends Transform {
 
             }
         } else {
-            dirInputMap.put(input, dirOutput)
+            dirInputMap.put(dirInput, dirOutput)
         }
 
     }
@@ -146,7 +144,7 @@ class EventTrackerTransformation extends Transform {
         final int dotPos = originJarName.lastIndexOf(".")
         if (dotPos < 0) {
             return "${originJarName}_${hashing}"
-        } each {
+        } else {
             final String nameWithoutDotExt = originJarName.substring(0, dotPos)
             final String dotExt = originJarName.substring(dotPos)
             return "${nameWithoutDotExt}_${hashing}${dotExt}"

@@ -1,6 +1,5 @@
 package com.yqyzxd.gradle.plugin.event;
 
-import com.android.tools.r8.w.F;
 
 import org.apache.commons.io.FileUtils;
 import org.objectweb.asm.ClassReader;
@@ -10,8 +9,9 @@ import org.objectweb.asm.Opcodes;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -64,13 +64,8 @@ public class EventTracker {
                 if (!mConfig.exclude(zipEntryName)) {
                     InputStream inputStream = zipFile.getInputStream(zipEntry);
 
-                    //使用asm修改class
-                    ClassReader classReader = new ClassReader(inputStream);
-                    ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-                    ClassVisitor classVisitor = new EventClassAdapter(Opcodes.ASM5, classWriter);
-                    classReader.accept(classVisitor, ClassReader.EXPAND_FRAMES);
+                    byte[] data = visit(inputStream);
 
-                    byte[] data = classWriter.toByteArray();
                     InputStream byteArrayInputStream = new ByteArrayInputStream(data);
                     ZipEntry newZipEntry = new ZipEntry(zipEntryName);
                     Util.addZipEntry(zipOutputStream, newZipEntry, byteArrayInputStream);
@@ -87,6 +82,16 @@ public class EventTracker {
             Util.closeQuietly(zipOutputStream);
             Util.closeQuietly(zipFile);
         }
+    }
+
+    private byte[] visit(InputStream inputStream) throws IOException {
+        //使用asm修改class
+        ClassReader classReader = new ClassReader(inputStream);
+        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        ClassVisitor classVisitor = new EventClassAdapter(Opcodes.ASM6, classWriter);
+        classReader.accept(classVisitor, ClassReader.EXPAND_FRAMES);
+
+        return classWriter.toByteArray();
     }
 
     private void trackSrc(Map<File, File> dirMap) {
@@ -116,7 +121,15 @@ public class EventTracker {
                 changedFileOutput.createNewFile();
 
                 if (!mConfig.exclude(classFile.getName())) {
+                    is = new FileInputStream(classFile);
 
+                    byte[] data = visit(is);
+                    if (output.isDirectory()){
+                        os = new FileOutputStream(changedFileOutput);
+                    }else {
+                        os = new FileOutputStream(output);
+                    }
+                    os.write(data);
 
                 } else {
                     FileUtils.copyFile(classFile, changedFileOutput);

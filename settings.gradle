@@ -1,2 +1,3 @@
 include ':app'
 include ':eventtracker-gradle-plugin'
+include ':event'
